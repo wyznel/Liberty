@@ -1,6 +1,7 @@
 # Local test / runtime data
 conversation_history/
 
+.mvn
 # Maven / Java build output
 target/
 out/
