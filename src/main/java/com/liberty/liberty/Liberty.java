@@ -13,7 +13,6 @@ import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
 
 import java.io.File;
-import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -41,10 +40,9 @@ public class Liberty extends Application {
         agentResponseTextArea.setEditable(false);
         agentResponseTextArea.getStyleClass().add("agent-response-text-area");
         agentResponseTextArea.setStyle("-fx-text-fill: white; -fx-background-color: transparent");
-        agentResponseTextArea.setText("Loading model: " + ollamaChatService.getModel() + "...");
+        agentResponseTyper.showLoadingAnimation(ollamaChatService.getModel());
         agentResponseTextArea.textProperty().addListener((observable, oldValue, newValue) -> agentResponseTextArea.setScrollTop(Double.MAX_VALUE));
         BorderPane.setMargin(agentResponseTextArea, new Insets(10));
-
 
         TextArea userInput = new TextArea();
         userInput.setWrapText(true);
@@ -100,11 +98,15 @@ public class Liberty extends Application {
             }
         };
         loadModelTask.setOnSucceeded(_ -> {
+            agentResponseTyper.stopLoadingAnimation();
             agentResponseTextArea.setText("Model loaded successfully, begin chatting!\n\nType /help for available commands.");
             userInput.setDisable(false);
             sendButton.setDisable(false);
         });
-        loadModelTask.setOnFailed(_ -> agentResponseTextArea.setText("Failed to load model. Please restart the application."));
+        loadModelTask.setOnFailed(_ -> {
+            agentResponseTyper.stopLoadingAnimation();
+            agentResponseTextArea.setText("Failed to load model. Please restart the application.");
+        });
         new Thread(loadModelTask).start();
     }
 

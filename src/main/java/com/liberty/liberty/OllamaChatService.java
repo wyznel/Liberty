@@ -17,7 +17,8 @@ public class OllamaChatService {
 
     private final String OLLAMA_URL = "http://127.0.0.1:11434/api/chat";
 //    private final String MODEL = "qwen3.5:4b";
-    private final String MODEL = "qwen2.5-coder:7b-instruct";
+    private final String MODEL = "gemma4:e4b";
+//    private final String MODEL = "qwen2.5-coder:7b-instruct";
     private final ObjectMapper MAPPER = new ObjectMapper();
     private final HttpClient httpClient = HttpClient.newHttpClient();
     private final File conversationHistoryDirectory = new File("conversation_history");
