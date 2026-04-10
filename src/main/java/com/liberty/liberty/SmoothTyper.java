@@ -5,16 +5,17 @@ import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.scene.control.Label;
+import javafx.scene.control.TextArea;
 import javafx.util.Duration;
 
 public class SmoothTyper {
     public final StringBuilder pending = new StringBuilder();
     private final StringBuilder shown = new StringBuilder();
 
-    private final Label label;
+    private final TextArea agentResponseTextArea;
 
-    public SmoothTyper(Label label){
-        this.label = label;
+    public SmoothTyper(TextArea agentResponseTextArea){
+        this.agentResponseTextArea = agentResponseTextArea;
     }
 
     public void startTyper(){
@@ -24,7 +25,7 @@ public class SmoothTyper {
 
                 shown.append(pending.charAt(0));
                 pending.deleteCharAt(0);
-                label.setText(shown.toString());
+                agentResponseTextArea.setText(shown.toString());
             }));
             timeline.setCycleCount(Animation.INDEFINITE);
             timeline.play();
@@ -34,5 +35,5 @@ public class SmoothTyper {
     public void append(String text){
         pending.append(text);
     }
-    public Label getLabel() { return label; }
+    public TextArea getAgentResponseTextArea() { return agentResponseTextArea; }
 }
