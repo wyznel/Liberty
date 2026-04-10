@@ -1,6 +1,7 @@
 package com.liberty.liberty;
 
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.concurrent.Task;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -23,7 +24,6 @@ public class Liberty extends Application {
 
     @Override
     public void start(Stage stage) {
-
         TextArea agentResponseTextArea = new TextArea();
 
         SmoothTyper agentResponseTyper = new SmoothTyper(agentResponseTextArea);
@@ -41,7 +41,7 @@ public class Liberty extends Application {
         agentResponseTextArea.getStyleClass().add("agent-response-text-area");
         agentResponseTextArea.setStyle("-fx-text-fill: white; -fx-background-color: transparent");
         agentResponseTyper.showLoadingAnimation(ollamaChatService.getModel());
-        agentResponseTextArea.textProperty().addListener((observable, oldValue, newValue) -> agentResponseTextArea.setScrollTop(Double.MAX_VALUE));
+
         BorderPane.setMargin(agentResponseTextArea, new Insets(10));
 
         TextArea userInput = new TextArea();
@@ -99,7 +99,7 @@ public class Liberty extends Application {
         };
         loadModelTask.setOnSucceeded(_ -> {
             agentResponseTyper.stopLoadingAnimation();
-            agentResponseTextArea.setText("Model loaded successfully, begin chatting!\n\nType /help for available commands.");
+            agentResponseTyper.append("Model loaded successfully, begin chatting!\n\nType /help for available commands.\n\n");
             userInput.setDisable(false);
             sendButton.setDisable(false);
         });

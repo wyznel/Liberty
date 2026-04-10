@@ -4,6 +4,7 @@ import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
+import javafx.scene.control.ScrollBar;
 import javafx.scene.control.TextArea;
 import javafx.util.Duration;
 
@@ -22,25 +23,34 @@ public class SmoothTyper {
         this.agentResponseTextArea = agentResponseTextArea;
     }
 
-    public void startTyper(){
+    public synchronized void startTyper(){
         Platform.runLater(() -> {
             mainTimeline = new Timeline(new KeyFrame(Duration.millis(20), _ -> {
                 if (pending.isEmpty()) return;
 
+                boolean followOutput = isNearBottom(agentResponseTextArea);
+
                 shown.append(pending.charAt(0));
                 pending.deleteCharAt(0);
                 agentResponseTextArea.setText(shown.toString());
+
+                if(followOutput) {
+                    agentResponseTextArea.setScrollTop(0);
+                }
+
             }));
             mainTimeline.setCycleCount(Animation.INDEFINITE);
             mainTimeline.play();
         });
     }
 
-    public void stopTyper(){
+    public synchronized void stopTyper(){
         mainTimeline.stop();
     }
 
-    public void showLoadingAnimation(String custText){
+    public synchronized void showLoadingAnimation(String custText){
+        if(loadingTimeline!=null) return;
+
         Platform.runLater(() -> {
             AtomicInteger noOfDots = new AtomicInteger(1);
             shown.append(String.format("Loading: %s", custText));
@@ -58,11 +68,24 @@ public class SmoothTyper {
         });
     }
 
-    public void stopLoadingAnimation(){
+    public synchronized void stopLoadingAnimation(){
+        if(loadingTimeline==null) return;
+        append("\n\n");
         loadingTimeline.stop();
+        loadingTimeline = null;
+        System.out.println("Stopped loading animation timeline");
     }
-    public void append(String text){
+    public synchronized void append(String text){
         pending.append(text);
     }
     public TextArea getAgentResponseTextArea() { return agentResponseTextArea; }
+
+    private boolean isNearBottom(TextArea area) {
+        ScrollBar vBar = (ScrollBar) area.lookup(".scroll-bar:vertical");
+        if (vBar == null) {
+            return true;
+        }
+        return vBar.getValue() >= vBar.getMax() - 0.05;
+    }
+
 }

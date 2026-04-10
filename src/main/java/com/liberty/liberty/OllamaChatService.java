@@ -17,19 +17,20 @@ public class OllamaChatService {
 
     private final String OLLAMA_URL = "http://127.0.0.1:11434/api/chat";
 //    private final String MODEL = "qwen3.5:4b";
-    private final String MODEL = "gemma4:e4b";
-//    private final String MODEL = "qwen2.5-coder:7b-instruct";
+//    private final String MODEL = "gemma4:e4b";
+    private final String MODEL = "qwen2.5-coder:7b-instruct";
     private final ObjectMapper MAPPER = new ObjectMapper();
     private final HttpClient httpClient = HttpClient.newHttpClient();
     private final File conversationHistoryDirectory = new File("conversation_history");
+    private final List<Map<String, Object>> conversationHistory = new ArrayList<>();
 
     {
         conversationHistoryDirectory.mkdirs();
+        conversationHistory.add(Map.of(
+                "role", "system",
+                "content", "Do not use any Emoji's in your responses, be direct, no fluff no waffle."
+        ));
     }
-
-
-    private final List<Map<String, Object>> conversationHistory = new ArrayList<>();
-
     private final SmoothTyper agentResponseTyper;
 
 
@@ -81,7 +82,9 @@ public class OllamaChatService {
                             String content = message.getContent();
 
                             if (thinking != null && !thinking.isBlank()) {
-                                Platform.runLater(() -> agentResponseTyper.append(thinking));
+                                agentResponseTyper.showLoadingAnimation("-> Model Thinking");
+                            }else{
+                                agentResponseTyper.stopLoadingAnimation();
                             }
                             if (content != null && !content.isBlank()) {
                                 Platform.runLater(() -> agentResponseTyper.append(content));
