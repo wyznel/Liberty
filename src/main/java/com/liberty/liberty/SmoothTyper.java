@@ -14,7 +14,7 @@ public class SmoothTyper {
     public final StringBuilder pending = new StringBuilder();
     private final StringBuilder shown = new StringBuilder();
 
-    private final TextArea agentResponseTextArea;
+    private TextArea agentResponseTextArea;
 
     private Timeline mainTimeline;
     private Timeline loadingTimeline;
@@ -26,22 +26,22 @@ public class SmoothTyper {
     public synchronized void startTyper(){
         Platform.runLater(() -> {
             mainTimeline = new Timeline(new KeyFrame(Duration.millis(20), _ -> {
-                if (pending.isEmpty()) return;
-
-                boolean followOutput = isNearBottom(agentResponseTextArea);
+                if (pending.isEmpty()) {
+                    return;
+                }
 
                 shown.append(pending.charAt(0));
                 pending.deleteCharAt(0);
                 agentResponseTextArea.setText(shown.toString());
 
-                if(followOutput) {
-                    agentResponseTextArea.setScrollTop(0);
-                }
-
             }));
             mainTimeline.setCycleCount(Animation.INDEFINITE);
             mainTimeline.play();
         });
+    }
+
+    public synchronized void setTextArea(TextArea agentResponseTextArea){
+        this.agentResponseTextArea = agentResponseTextArea;
     }
 
     public synchronized void stopTyper(){
@@ -80,12 +80,8 @@ public class SmoothTyper {
     }
     public TextArea getAgentResponseTextArea() { return agentResponseTextArea; }
 
-    private boolean isNearBottom(TextArea area) {
-        ScrollBar vBar = (ScrollBar) area.lookup(".scroll-bar:vertical");
-        if (vBar == null) {
-            return true;
-        }
-        return vBar.getValue() >= vBar.getMax() - 0.05;
+    public synchronized void clearShown(){
+        shown.setLength(0);
     }
 
 }

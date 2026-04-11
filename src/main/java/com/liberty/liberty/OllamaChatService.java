@@ -1,114 +1,58 @@
 package com.liberty.liberty;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import javafx.application.Platform;
+import io.github.ollama4j.Ollama;
+import io.github.ollama4j.exceptions.OllamaException;
+import io.github.ollama4j.models.chat.OllamaChatMessageRole;
+import io.github.ollama4j.models.chat.OllamaChatRequest;
+import io.github.ollama4j.models.chat.OllamaChatResult;
+import io.github.ollama4j.models.chat.OllamaChatStreamObserver;
 
 import java.io.File;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Stream;
 
 public class OllamaChatService {
 
-    private final String OLLAMA_URL = "http://127.0.0.1:11434/api/chat";
-//    private final String MODEL = "qwen3.5:4b";
-//    private final String MODEL = "gemma4:e4b";
-    private final String MODEL = "qwen2.5-coder:7b-instruct";
-    private final ObjectMapper MAPPER = new ObjectMapper();
-    private final HttpClient httpClient = HttpClient.newHttpClient();
+    private final Ollama ollama = new Ollama("http://127.0.0.1:11434");
+    private final OllamaChatRequest builder = OllamaChatRequest.builder().withModel("qwen2.5-coder:7b-instruct");
+    private final OllamaChatRequest requestModel = builder.withMessage(OllamaChatMessageRole.SYSTEM, "Do not use any Emoji's in your responses, be direct, no fluff no waffle.").build();
     private final File conversationHistoryDirectory = new File("conversation_history");
-    private final List<Map<String, Object>> conversationHistory = new ArrayList<>();
-
-    {
-        conversationHistoryDirectory.mkdirs();
-        conversationHistory.add(Map.of(
-                "role", "system",
-                "content", "Do not use any Emoji's in your responses, be direct, no fluff no waffle."
-        ));
-    }
+    private OllamaChatResult chatResult = null;
     private final SmoothTyper agentResponseTyper;
-
 
     public OllamaChatService(SmoothTyper agentResponseTyper) {
         this.agentResponseTyper = agentResponseTyper;
     }
 
-    public void getAgentResponse(String newMessage) {
-        if (newMessage == null || newMessage.isBlank()) {
-            return;
-        }
+    {
+        conversationHistoryDirectory.mkdirs();
+    }
 
+    public void chat(String prompt){
         new Thread(() -> {
-            try {
-                conversationHistory.add(Map.of(
-                        "role", "user",
-                        "content", newMessage
-                ));
+            try{
+                OllamaChatRequest requestModel = chatResult == null ?
+                        builder.withMessage(OllamaChatMessageRole.USER, prompt).build() :
+                        builder.withMessages(chatResult.getChatHistory()).withMessage(OllamaChatMessageRole.USER, prompt).build();
 
-                Map<String, Object> bodyMap = Map.of(
-                        "model", MODEL,
-                        "messages", conversationHistory,
-                        "stream", true
-                );
+                try{
+                    agentResponseTyper.clearShown();
+                    OllamaChatStreamObserver streamObserver = new OllamaChatStreamObserver();
+                    streamObserver.setThinkingStreamHandler(
+                            s -> System.out.println(s.toLowerCase())
+                    );
 
-                String body = MAPPER.writeValueAsString(bodyMap);
+                    streamObserver.setResponseStreamHandler(
+                            agentResponseTyper::append
+                    );
 
-                HttpRequest req = HttpRequest.newBuilder()
-                        .uri(URI.create(OLLAMA_URL))
-                        .header("Content-Type", "application/json")
-                        .POST(HttpRequest.BodyPublishers.ofString(body))
-                        .build();
+                    chatResult = ollama.chat(requestModel, streamObserver);
+                }catch (OllamaException e){
+                    System.out.println("Server offline");
+                }
 
-                HttpResponse<Stream<String>> response = httpClient.send(req, HttpResponse.BodyHandlers.ofLines());
-
-                StringBuilder fullResponse = new StringBuilder();
-
-                response.body().forEach(chunk -> {
-                    if (chunk == null || chunk.isBlank()) {
-                        return;
-                    }
-
-                    try {
-                        ResponseDTO resp = MAPPER.readValue(chunk, ResponseDTO.class);
-                        MessageDTO message = resp.getMessage();
-
-                        if(message != null){
-                            String thinking = message.getThinking();
-                            String content = message.getContent();
-
-                            if (thinking != null && !thinking.isBlank()) {
-                                agentResponseTyper.showLoadingAnimation("-> Model Thinking");
-                            }else{
-                                agentResponseTyper.stopLoadingAnimation();
-                            }
-                            if (content != null && !content.isBlank()) {
-                                Platform.runLater(() -> agentResponseTyper.append(content));
-                                fullResponse.append(content);
-                            }
-                        }
-
-                        if (resp.isDone()) {
-                            conversationHistory.add(Map.of(
-                                    "role", "assistant",
-                                    "content", fullResponse.toString()
-                            ));
-                            agentResponseTyper.append("\n\n");
-                            System.out.println(conversationHistory);
-                        }
-                    } catch (Exception e) {
-                        throw new RuntimeException(e);
-                    }
-                });
-
-            } catch (Exception e) {
-                Platform.runLater(() ->
-                        agentResponseTyper  .append("[Request Failed] " + e.getMessage() + "\n\n")
-                );
+            }catch (Exception e){
+                System.out.println("Server offline");
             }
         }).start();
     }
@@ -117,7 +61,6 @@ public class OllamaChatService {
         try{
             File path = new File(conversationHistoryDirectory + "//" +filename+".json");
             if(path.createNewFile()){
-                MAPPER.writeValue(path, conversationHistory);
                 System.out.println("Conversation history saved to " + path.getPath());
                 return true;
             }else{
@@ -133,7 +76,7 @@ public class OllamaChatService {
         try{
             File previousConversation = new File(conversationHistoryDirectory + "//" + filename + ".json");
             if(previousConversation.exists() && previousConversation.isFile()){
-                conversationHistory.addAll(MAPPER.readValue(previousConversation, List.class));
+
                 return true;
             }else{
                 return false;
@@ -143,11 +86,12 @@ public class OllamaChatService {
         }
     }
 
-    public String getModel() {
-        return MODEL;
+    public SmoothTyper getTyper() {
+        return agentResponseTyper;
     }
 
-
-
+    public String getModel(){
+        return requestModel.getModel();
+    }
 
 }

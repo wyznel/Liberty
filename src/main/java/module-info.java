@@ -4,6 +4,7 @@ module com.liberty.liberty {
     requires java.net.http;
     requires com.fasterxml.jackson.databind;
     requires java.desktop;
+    requires ollama4j;
 
 
     opens com.liberty.liberty to javafx.fxml;
