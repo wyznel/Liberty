@@ -1,6 +1,9 @@
+> [!IMPORTANT]  
+> Liberty is still in early development, expect lots of issues!
+
 # Liberty
 
-Liberty is a lightweight, JavaFX-based desktop chat application for interacting with local LLMs via [Ollama](https://ollama.com/). It provides a clean, modern interface with a smooth typing effect and built-in conversation management.
+Liberty is a lightweight, JavaFX-based desktop chat application for interacting with local LLMs via [Ollama](https://ollama.com/). It aims to provides a clean, modern interface with a smooth typing effect and built-in conversation management.
 
 ## Features
 
