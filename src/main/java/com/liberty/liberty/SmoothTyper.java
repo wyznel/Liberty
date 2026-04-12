@@ -4,8 +4,8 @@ import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
-import javafx.scene.control.ScrollBar;
-import javafx.scene.control.TextArea;
+import javafx.scene.control.Label;
+import javafx.scene.text.Text;
 import javafx.util.Duration;
 
 import java.util.concurrent.atomic.AtomicInteger;
@@ -14,13 +14,13 @@ public class SmoothTyper {
     public final StringBuilder pending = new StringBuilder();
     private final StringBuilder shown = new StringBuilder();
 
-    private TextArea agentResponseTextArea;
+    private Label agentResponseLabel;
 
     private Timeline mainTimeline;
     private Timeline loadingTimeline;
 
-    public SmoothTyper(TextArea agentResponseTextArea){
-        this.agentResponseTextArea = agentResponseTextArea;
+    public SmoothTyper(Label agentResponseLabel){
+        this.agentResponseLabel = agentResponseLabel;
     }
 
     public synchronized void startTyper(){
@@ -32,7 +32,7 @@ public class SmoothTyper {
 
                 shown.append(pending.charAt(0));
                 pending.deleteCharAt(0);
-                agentResponseTextArea.setText(shown.toString());
+                agentResponseLabel.setText(shown.toString());
 
             }));
             mainTimeline.setCycleCount(Animation.INDEFINITE);
@@ -40,8 +40,9 @@ public class SmoothTyper {
         });
     }
 
-    public synchronized void setTextArea(TextArea agentResponseTextArea){
-        this.agentResponseTextArea = agentResponseTextArea;
+
+    public synchronized void setLabel(Label agentResponseLabel){
+        this.agentResponseLabel = agentResponseLabel;
     }
 
     public synchronized void stopTyper(){
@@ -61,7 +62,7 @@ public class SmoothTyper {
                     noOfDots.set(1);
                     shown.delete(shown.length() - 4, shown.length());
                 }
-                agentResponseTextArea.setText(shown.toString());
+                agentResponseLabel.setText(shown.toString());
             })) ;
            loadingTimeline.setCycleCount(Animation.INDEFINITE);
            loadingTimeline.play();
@@ -78,10 +79,14 @@ public class SmoothTyper {
     public synchronized void append(String text){
         pending.append(text);
     }
-    public TextArea getAgentResponseTextArea() { return agentResponseTextArea; }
+    public Label getAgentResponseLabel() { return agentResponseLabel; }
 
     public synchronized void clearShown(){
         shown.setLength(0);
+    }
+
+    public synchronized boolean isPendingEmpty(){
+        return pending.isEmpty();
     }
 
 }

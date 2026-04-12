@@ -1,11 +1,6 @@
 package com.liberty.liberty;
 
-import io.github.ollama4j.Ollama;
 import io.github.ollama4j.exceptions.OllamaException;
-import io.github.ollama4j.models.chat.*;
-import io.github.ollama4j.models.generate.OllamaGenerateRequest;
-import io.github.ollama4j.models.generate.OllamaGenerateTokenHandler;
-import io.github.ollama4j.models.response.OllamaResult;
 import javafx.application.Application;
 import javafx.concurrent.Task;
 import javafx.geometry.Insets;
@@ -13,22 +8,15 @@ import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.input.KeyCode;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.VBox;
-import javafx.scene.text.Text;
+import javafx.scene.layout.*;
 import javafx.stage.Stage;
 
 import java.io.File;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Scanner;
+import java.util.*;
 
 public class Liberty extends Application {
 
-    private final Map<TextArea, SmoothTyper> TYPERS = new HashMap<>();
+    private final Map<Label, SmoothTyper> TYPERS = new HashMap<>();
 
     private final VBox VBOX_agentResponseArea = new VBox();
 
@@ -38,10 +26,10 @@ public class Liberty extends Application {
     }
 
     private void init(Stage stage){
-        TextArea agentResponseTextArea = getNewAgentResponseTextAreaAndStartNewTyper();
-        SmoothTyper agentTyper = new SmoothTyper(agentResponseTextArea);
+        Label agentResponseLabel = getNewAgentResponseLabelAndStartNewTyper(null);
+        SmoothTyper agentTyper = new SmoothTyper(agentResponseLabel);
         agentTyper.startTyper();
-        TYPERS.put(agentResponseTextArea, agentTyper);
+        TYPERS.put(agentResponseLabel, agentTyper);
 
         OllamaChatService ollamaChatService = new OllamaChatService(agentTyper);
 
@@ -51,7 +39,7 @@ public class Liberty extends Application {
 
         VBOX_agentResponseArea.setSpacing(5);
         VBOX_agentResponseArea.setAlignment(Pos.CENTER_LEFT);
-        VBOX_agentResponseArea.getChildren().add(agentResponseTextArea);
+        VBOX_agentResponseArea.getChildren().add(agentResponseLabel);
 
         BorderPane.setMargin(VBOX_agentResponseArea, new Insets(10));
         TextArea userInput = new TextArea();
@@ -60,7 +48,7 @@ public class Liberty extends Application {
         userInput.getStyleClass().add("user-input-text-area");
         userInput.setPrefHeight(20);
         userInput.setMaxHeight(30);
-
+        userInput.setDisable(true);
         HBox.setHgrow(userInput, Priority.ALWAYS);
 
         Button sendButton = new Button("Send");
@@ -70,8 +58,11 @@ public class Liberty extends Application {
         sendButton.setOnAction(_ -> {
             if (userInput.getText().isEmpty()) return;
 
-            TextArea test1 = getNewAgentResponseTextAreaAndStartNewTyper();
-            ollamaChatService.getTyper().setTextArea(test1);
+//            sendButton.setDisable(true);
+//            userInput.setDisable(true);
+
+            Label test1 = getNewAgentResponseLabelAndStartNewTyper(agentTyper.getAgentResponseLabel());
+            ollamaChatService.getTyper().setLabel(test1);
             VBOX_agentResponseArea.getChildren().add(test1);
 
             if(userInput.getText().startsWith("/")){
@@ -97,16 +88,16 @@ public class Liberty extends Application {
 
         outerAgentResponseArea_SCROLLPANE.setContent(VBOX_agentResponseArea);
         outerAgentResponseArea_SCROLLPANE.setFitToWidth(true);
-        outerAgentResponseArea_SCROLLPANE.setFitToHeight(true);
+        outerAgentResponseArea_SCROLLPANE.setFitToHeight(false);
 
         root.setCenter(outerAgentResponseArea_SCROLLPANE);
         root.setBottom(inputBox);
 
-        Scene scene = new Scene(root, 600, 700);
+        Scene scene = new Scene(root, 700, 700);
 
         scene.getStylesheets().add(Objects.requireNonNull(Liberty.class.getResource("style.css")).toString());
 
-        stage.setMinWidth(600);
+        stage.setMinWidth(700);
         stage.setMinHeight(700);
         stage.setScene(scene);
         stage.setTitle("Liberty Agent");
@@ -123,51 +114,62 @@ public class Liberty extends Application {
         };
         loadModelTask.setOnSucceeded(_ -> {
             agentTyper.stopLoadingAnimation();
-            agentTyper.append("Model loaded successfully, begin chatting!\n\nType /help for available commands.\n\n");
+            agentTyper.append("Model loaded successfully, begin chatting!\n\nType /help for available commands.");
             userInput.setDisable(false);
             sendButton.setDisable(false);
         });
         loadModelTask.setOnFailed(_ -> {
             agentTyper.stopLoadingAnimation();
-            agentResponseTextArea.setText("Failed to load model. Please restart the application.");
+            agentResponseLabel.setText("Failed to load model. Please restart the application.");
         });
         new Thread(loadModelTask).start();
     }
 
     private void handleCommand(String userInputText, SmoothTyper agentResponseTyper, OllamaChatService ollamaChatService){
         String[] parts = userInputText.split(" ");
+        for (int i = 0; i < parts.length; i++) {
+            parts[i] = parts[i].trim();
+        }
+
+        agentResponseTyper.clearShown();
+
+        if(parts[0].equalsIgnoreCase("/help")){
+            System.out.println("hello!");
+        }
 
         switch (parts[0].toLowerCase()){
             case "/exit" -> {
                 agentResponseTyper.append("Goodbye! See you next time!\n\n");
                 System.exit(0);
             }
-            case "/clear" -> agentResponseTyper.getAgentResponseTextArea().setText("");
+            case "/clear" -> {
+                VBOX_agentResponseArea.getChildren().clear();
+            }
             case "/help" -> {
                 agentResponseTyper.append("Available commands:\n" +
                         "/save <filename> - Save the current conversation history to a file\n" +
                         "/load  <filename> - Load a conversation history from a file\n" +
                         "/exit - Exit the application\n" +
                         "/clear - Clear the chat window\n" +
-                        "/help - Show this help message\n\n");
+                        "/help - Show this help message");
             }
             case "/save" -> {
                 //Save the current conversation history to a file.
                 if (ollamaChatService.saveConversationHistory(parts[1])){
-                    File file = new File(parts[1] + ".json");
-                    agentResponseTyper.append("Conversation history saved to " + file.getAbsolutePath() + "\n\n");
+                    File file = new File(OllamaChatService.CONVERSATION_HISTORY_DIRECTORY + "/" + parts[1] + ".json"); // Used to get the file path.
+                    agentResponseTyper.append("Conversation history saved to " + file.getAbsolutePath());
                 }else{
-                    agentResponseTyper.append("Failed to save conversation history. File might already exist.\n\n");
+                    agentResponseTyper.append("Failed to save conversation history. File might already exist.");
                 }
             }
             case "/load" -> {
                 if(ollamaChatService.loadPreviousConversation(parts[1])){
-                    agentResponseTyper.append("Successfully loaded conversation history from: " + new File(parts[1] + ".json").getAbsolutePath() + "\n\n");
+                    agentResponseTyper.append("Successfully loaded conversation history from: " + new File(OllamaChatService.CONVERSATION_HISTORY_DIRECTORY + "/" + parts[1] + ".json").getAbsolutePath());
                 }else{
                     agentResponseTyper.append("Failed to load conversation history, file might not exist!");
                 }
             }
-            default -> agentResponseTyper.append("Unknown command. Type /help for available commands.\n\n");
+            default -> agentResponseTyper.append("Unknown command. Type /help for available commands.");
         }
     }
 
@@ -175,26 +177,20 @@ public class Liberty extends Application {
         return VBOX_agentResponseArea;
     }
 
-    public TextArea getNewAgentResponseTextAreaAndStartNewTyper(){
-        TextArea agentResponseTextArea = new TextArea();
-        agentResponseTextArea.setWrapText(true);
-        agentResponseTextArea.setMinHeight(20);
-        agentResponseTextArea.setPrefHeight(100);
-        agentResponseTextArea.setEditable(false);
-        agentResponseTextArea.getStyleClass().add("agent-response-text-area");
-        agentResponseTextArea.setStyle("-fx-text-fill: white; -fx-background-color: transparent");
+    public Label getNewAgentResponseLabelAndStartNewTyper(Label prevLabel) {
+        if(prevLabel != null){
+            prevLabel.setText(prevLabel.getText() + "\n\n");
+        }
 
-        Runnable dynamicHeightResize = () -> {
-          Text helper = new Text(agentResponseTextArea.getText());
-          helper.setFont(agentResponseTextArea.getFont());
-          helper.setWrappingWidth(agentResponseTextArea.getWidth() - 20);
-          double textHeight = helper.getLayoutBounds().getHeight();
+        Label agentResponseLabel = new Label();
+        agentResponseLabel.setWrapText(true);
+        agentResponseLabel.setFocusTraversable(true);
 
-          agentResponseTextArea.setPrefHeight(textHeight + 25);
-        };
-        agentResponseTextArea.textProperty().addListener((obs, oldHeight, newHeight) -> {dynamicHeightResize.run();});
+        agentResponseLabel.getStyleClass().add("agent-response-text-area");
+        agentResponseLabel.setStyle("-fx-text-fill: white; -fx-background-color: transparent;");
 
-        return agentResponseTextArea;
+        VBox.setVgrow(agentResponseLabel, Priority.NEVER);
+        return agentResponseLabel;
     }
 
 }

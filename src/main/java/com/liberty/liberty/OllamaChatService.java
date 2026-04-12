@@ -1,39 +1,52 @@
 package com.liberty.liberty;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.ollama4j.Ollama;
 import io.github.ollama4j.exceptions.OllamaException;
-import io.github.ollama4j.models.chat.OllamaChatMessageRole;
-import io.github.ollama4j.models.chat.OllamaChatRequest;
-import io.github.ollama4j.models.chat.OllamaChatResult;
-import io.github.ollama4j.models.chat.OllamaChatStreamObserver;
+import io.github.ollama4j.models.chat.*;
+import io.github.ollama4j.tools.annotations.OllamaToolService;
 
-import java.io.File;
+
+import java.io.*;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
+
+@OllamaToolService(providers = AvailableTools.class)
 public class OllamaChatService {
 
+    public static final File CONVERSATION_HISTORY_DIRECTORY = new File("conversation_history");
+
     private final Ollama ollama = new Ollama("http://127.0.0.1:11434");
-    private final OllamaChatRequest builder = OllamaChatRequest.builder().withModel("qwen2.5-coder:7b-instruct");
-    private final OllamaChatRequest requestModel = builder.withMessage(OllamaChatMessageRole.SYSTEM, "Do not use any Emoji's in your responses, be direct, no fluff no waffle.").build();
-    private final File conversationHistoryDirectory = new File("conversation_history");
-    private OllamaChatResult chatResult = null;
+    private final OllamaChatRequest builder = OllamaChatRequest.builder().withModel("gemma4:e4b");
+    private OllamaChatRequest requestModel = builder.withMessage(OllamaChatMessageRole.SYSTEM, "Do not use any Emoji's in your responses, be direct, no fluff no waffle.").build();
+    private OllamaChatResult chatResult = new OllamaChatResult(new OllamaChatResponseModel(), new ArrayList<OllamaChatMessage>() {
+    });
     private final SmoothTyper agentResponseTyper;
 
     public OllamaChatService(SmoothTyper agentResponseTyper) {
         this.agentResponseTyper = agentResponseTyper;
+
+        try{
+            ollama.registerAnnotatedTools();
+        }catch(OllamaException e){
+            System.err.println(e.getMessage());
+        }
+
     }
 
     {
-        conversationHistoryDirectory.mkdirs();
+        if(CONVERSATION_HISTORY_DIRECTORY.mkdirs()){
+            System.out.println("> Conversation history directory created");
+        }
+
     }
 
     public void chat(String prompt){
         new Thread(() -> {
             try{
-                OllamaChatRequest requestModel = chatResult == null ?
-                        builder.withMessage(OllamaChatMessageRole.USER, prompt).build() :
-                        builder.withMessages(chatResult.getChatHistory()).withMessage(OllamaChatMessageRole.USER, prompt).build();
+                requestModel = builder.withMessages(chatResult.getChatHistory()).withMessage(OllamaChatMessageRole.USER, prompt).build();
 
                 try{
                     agentResponseTyper.clearShown();
@@ -50,18 +63,27 @@ public class OllamaChatService {
                 }catch (OllamaException e){
                     System.out.println("Server offline");
                 }
-
             }catch (Exception e){
                 System.out.println("Server offline");
             }
         }).start();
     }
 
+
+    /**
+     * Saves the current conversation to a JSON file.
+     * @param filename name of file.
+     * @return TRUE / FALSE if successful.
+     */
     public boolean saveConversationHistory(String filename){
         try{
-            File path = new File(conversationHistoryDirectory + "//" +filename+".json");
+            File path = new File(CONVERSATION_HISTORY_DIRECTORY + "/" +filename+".json");
             if(path.createNewFile()){
-                System.out.println("Conversation history saved to " + path.getPath());
+                System.out.println("Conversation history saved to " + path.getAbsolutePath());
+
+                BufferedWriter writer = new BufferedWriter(new FileWriter(path));
+                writer.write(chatResult.getChatHistory().toString());
+                writer.close();
                 return true;
             }else{
                 //File already exists.
@@ -72,15 +94,24 @@ public class OllamaChatService {
         }
     }
 
+    /**
+     * Loads a conversation and adds it to the LLMs context.
+     * @param filename name of file.
+     * @return TRUE / FALSE if successful.
+     */
     public boolean loadPreviousConversation(String filename){
         try{
-            File previousConversation = new File(conversationHistoryDirectory + "//" + filename + ".json");
-            if(previousConversation.exists() && previousConversation.isFile()){
-
-                return true;
-            }else{
+            File previousConversation = new File(CONVERSATION_HISTORY_DIRECTORY + "/" + filename + ".json");
+            if(!previousConversation.exists() ||  !previousConversation.isFile()){
                 return false;
             }
+
+            ObjectMapper MAPPER = new ObjectMapper();
+            List<OllamaChatMessage> chatHistory = MAPPER.readValue(previousConversation, new TypeReference<>() {});
+
+            chatResult.getChatHistory().addAll(chatHistory);
+            return true;
+
         }catch (Exception e) {
             throw new RuntimeException(e);
         }
