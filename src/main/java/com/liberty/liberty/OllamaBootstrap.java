@@ -1,29 +1,26 @@
 package com.liberty.liberty;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
+import io.github.ollama4j.models.generate.OllamaGenerateRequest;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
-import java.util.List;
-import java.util.Map;
 
 public class OllamaBootstrap {
     private static final String BASE_URL = "http://127.0.0.1:11434";
     private static final HttpClient CLIENT = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2)).build();
 
+    public static void ensureOllamaReady(OllamaChatService ollamaChatService) throws Exception {
 
-    public static Process ensureOllamaReady(String modelName) throws Exception {
-        Process ollamaProcess = null;
+        String modelName = ollamaChatService.getModel();
 
-        if (!isServerUp()) {
-            ollamaProcess = new ProcessBuilder("ollama", "serve")
+        if (!isServerUp(ollamaChatService)) {
+            new ProcessBuilder("ollama", "serve")
                     .redirectErrorStream(true)
                     .start();
 
-            waitForServer();
+            waitForServer(ollamaChatService);
         }
 
         if (!isModelInstalled(modelName)) {
@@ -36,32 +33,21 @@ public class OllamaBootstrap {
                 throw new Exception("Failed to pull model: " + modelName);
             }
         }
-        warmModel(modelName);
-
-        return ollamaProcess;
+        warmModel(ollamaChatService);
     }
 
-    private static boolean isServerUp() {
+    private static boolean isServerUp(OllamaChatService ollamaChatService) {
         try {
-            HttpRequest req = HttpRequest.newBuilder()
-                    .uri(URI.create(BASE_URL + "/api/version"))
-                    .timeout(Duration.ofSeconds(2))
-                    .GET()
-                    .build();
-
-            HttpResponse<String> resp = CLIENT.send(req, HttpResponse.BodyHandlers.ofString());
-
-            return resp.statusCode() == 200;
-
+            return ollamaChatService.getOllama().ping();
         } catch (Exception e) {
             return false;
         }
     }
 
-    private static void waitForServer() throws Exception {
+    private static void waitForServer(OllamaChatService ollamaChatService) throws Exception {
         int attempts = 0;
         while (attempts < 20) {
-            if (isServerUp()) return;
+            if (isServerUp(ollamaChatService)) return;
             Thread.sleep(500);
             attempts++;
         }
@@ -84,34 +70,18 @@ public class OllamaBootstrap {
         }
     }
 
-    private static void warmModel(String modelName) throws Exception {
-        Map<String, Object> bodyMap = Map.of(
-                "model",    modelName,
-                "messages", List.of(
-                        Map.of(
-                        "role", "user",
-                        "content", "hi"
-                        )
-                ),
-                "stream",   false
-        );
+    private static void warmModel(OllamaChatService ollamaChatService) throws Exception {
+        ollamaChatService.getOllama().generate(
+                OllamaGenerateRequest.builder()
+                        .withModel(ollamaChatService.getModel())
+                        .withPrompt("Ignore this, warming up the model")
+                        .build(),
+        null);
+    }
 
-        String body = new ObjectMapper().writeValueAsString(bodyMap);
-
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(BASE_URL + "/api/chat"))
-                .header("Content-Type", "application/json")
-                .timeout(Duration.ofMinutes(2))
-                .POST(HttpRequest.BodyPublishers.ofString(body))
-                .build();
-
-        HttpResponse<String> response =
-                CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
-
-        if (response.statusCode() != 200) {
-            throw new IllegalStateException(
-                    "Failed to warm model. HTTP " + response.statusCode() + " Body: " + response.body()
-            );
-        }
+    public static void stopOllamaModel(String modelName) throws Exception {
+        new ProcessBuilder("ollama", "stop", modelName)
+                .inheritIO()
+                .start();
     }
 }

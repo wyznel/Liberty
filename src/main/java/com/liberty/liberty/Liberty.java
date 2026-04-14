@@ -1,31 +1,30 @@
 package com.liberty.liberty;
 
-import io.github.ollama4j.exceptions.OllamaException;
 import javafx.application.Application;
 import javafx.concurrent.Task;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.TextArea;
+import javafx.scene.image.Image;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.*;
 import javafx.stage.Stage;
-import org.apache.pdfbox.Loader;
-import org.apache.pdfbox.io.RandomAccessReadBufferedFile;
-import org.apache.pdfbox.pdmodel.PDDocument;
-import org.apache.pdfbox.text.PDFTextStripper;
 
+import java.awt.*;
 import java.io.File;
 import java.util.*;
 
 public class Liberty extends Application {
 
-    private final Map<Label, SmoothTyper> TYPERS = new HashMap<>();
-
     private final VBox VBOX_agentResponseArea = new VBox();
 
     @Override
-    public void start(Stage stage) throws OllamaException {
+    public void start(Stage stage) {
         init(stage);
     }
 
@@ -33,7 +32,6 @@ public class Liberty extends Application {
         Label agentResponseLabel = getNewAgentResponseLabelAndStartNewTyper(null);
         SmoothTyper agentTyper = new SmoothTyper(agentResponseLabel);
         agentTyper.startTyper();
-        TYPERS.put(agentResponseLabel, agentTyper);
 
         OllamaChatService ollamaChatService = new OllamaChatService(agentTyper);
 
@@ -101,6 +99,28 @@ public class Liberty extends Application {
 
         scene.getStylesheets().add(Objects.requireNonNull(Liberty.class.getResource("style.css")).toString());
 
+        try{
+            stage.getIcons().add(new Image(Objects.requireNonNull(getClass().getResourceAsStream("assets/icon.png"))));
+
+            if(Taskbar.isTaskbarSupported()){
+                var taskbar = Taskbar.getTaskbar();
+
+                if(taskbar.isSupported(Taskbar.Feature.ICON_IMAGE)){
+                    final Toolkit toolkit = Toolkit.getDefaultToolkit();
+                    var dockIcon = toolkit.getImage(getClass().getResource("assets/icon.png"));
+                    taskbar.setIconImage(dockIcon);
+                }
+            }
+
+        }catch (Exception e){
+            System.err.println("Failed to load icon: " + e.getMessage());
+        }
+
+        stage.setOnCloseRequest(e -> {
+            e.consume();
+            stopApp(ollamaChatService);
+        });
+
         stage.setMinWidth(700);
         stage.setMinHeight(700);
         stage.setScene(scene);
@@ -109,13 +129,14 @@ public class Liberty extends Application {
 
         //Load model in the background.
         agentTyper.showLoadingAnimation(ollamaChatService.getModel());
-        Task<Void> loadModelTask = new Task<Void>() {
+        Task<Void> loadModelTask = new Task<>() {
             @Override
             protected Void call() throws Exception {
-                OllamaBootstrap.ensureOllamaReady(ollamaChatService.getModel());
+                OllamaBootstrap.ensureOllamaReady(ollamaChatService);
                 return null;
             }
         };
+
         loadModelTask.setOnSucceeded(_ -> {
             agentTyper.stopLoadingAnimation();
             agentTyper.append("Model loaded successfully, begin chatting!\n\nType /help for available commands.");
@@ -142,21 +163,15 @@ public class Liberty extends Application {
         }
 
         switch (parts[0].toLowerCase()){
-            case "/exit" -> {
-                agentResponseTyper.append("Goodbye! See you next time!\n\n");
-                System.exit(0);
-            }
-            case "/clear" -> {
-                VBOX_agentResponseArea.getChildren().clear();
-            }
-            case "/help" -> {
-                agentResponseTyper.append("Available commands:\n" +
-                        "/save <filename> - Save the current conversation history to a file\n" +
-                        "/load  <filename> - Load a conversation history from a file\n" +
-                        "/exit - Exit the application\n" +
-                        "/clear - Clear the chat window\n" +
-                        "/help - Show this help message");
-            }
+            case "/exit" -> stopApp(ollamaChatService);
+            case "/clear" -> VBOX_agentResponseArea.getChildren().clear();
+            case "/help" -> agentResponseTyper.append("""
+                    Available commands:
+                    /save <filename> - Save the current conversation history to a file
+                    /load  <filename> - Load a conversation history from a file
+                    /exit - Exit the application
+                    /clear - Clear the chat window
+                    /help - Show this help message""");
             case "/save" -> {
                 //Save the current conversation history to a file.
                 if (ollamaChatService.saveConversationHistory(parts[1])){
@@ -198,15 +213,14 @@ public class Liberty extends Application {
         return agentResponseLabel;
     }
 
-    public void readPDF(){
-        File pdf = new File("sandbox/test.pdf");
+    private static void stopApp(OllamaChatService ollamaChatService){
         try{
-            PDDocument document = Loader.loadPDF(new RandomAccessReadBufferedFile(pdf.getName()));
-            PDFTextStripper stripper = new PDFTextStripper();
-            String text = stripper.getText(document);
-            System.out.println("Extracted text from PDF:\n" + text);
+            ollamaChatService.getTyper().append("Goodbye! See you next time!");
+            OllamaBootstrap.stopOllamaModel(ollamaChatService.getModel());
+            System.exit(0);
         }catch (Exception e){
-            e.printStackTrace();
+            System.err.println("Failed to stop model: " + e.getMessage());
+            System.exit(1);
         }
     }
 

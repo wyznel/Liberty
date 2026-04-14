@@ -2,44 +2,43 @@ package com.liberty.liberty;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.liberty.liberty.Tools.AvailableTools;
+import com.liberty.liberty.Tools.FileHandlingTools;
 import com.liberty.liberty.Tools.PDFTools;
 import io.github.ollama4j.Ollama;
 import io.github.ollama4j.exceptions.OllamaException;
 import io.github.ollama4j.models.chat.*;
 import io.github.ollama4j.tools.annotations.OllamaToolService;
 
-
 import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 
-
-@OllamaToolService(providers = { AvailableTools.class, PDFTools.class })
+@OllamaToolService(providers = { FileHandlingTools.class, PDFTools.class })
 public class OllamaChatService {
 
-    private static String[] AVAILABLE_MODELS = {
+    private final static String[] AVAILABLE_MODELS = {
             "gemma4:e4b", "qwen2.5:7b-instruct",
-            "qwen3.5:4b"
+            "qwen3.5:4b", "qwen3:4b-instruct",
+            "gemma4:e2b"
     };
-
 
     public static final File CONVERSATION_HISTORY_DIRECTORY = new File("conversation_history");
 
     private final Ollama ollama = new Ollama("http://127.0.0.1:11434");
-    private final OllamaChatRequest builder = OllamaChatRequest.builder().withModel(AVAILABLE_MODELS[1]);
-    private OllamaChatRequest requestModel = builder.withMessage(OllamaChatMessageRole.SYSTEM, "You are Liberty, a local desktop AI assistant.\n" +
-            "You may answer normally or request exactly one tool call.\n" +
-            "\n" +
-            "Available tools:\n" +
-            "1. createNewFile(filename: string)\n" +
-            "2. writeToFile(filename: string, data: string)\n" +
-            "3. readFromFile(filename: string)\n" +
-            "4. extractTextFromPDF(filename: string)\n" +
-            "\n" +
-            "Rules:\n" +
-            "- Be direct, no fluff, no waffle, and do not use emojis.").build();
-    private OllamaChatResult chatResult = new OllamaChatResult(new OllamaChatResponseModel(), new ArrayList<OllamaChatMessage>() {
+    private final OllamaChatRequest builder = OllamaChatRequest.builder().withModel(AVAILABLE_MODELS[3]);
+    private OllamaChatRequest requestModel = builder.withMessage(OllamaChatMessageRole.SYSTEM, """
+            You are Liberty, a local desktop AI assistant.
+            You may answer normally or request exactly one tool call.
+            
+            Available tools:
+            1. createNewFile(filename: string)
+            2. writeToFile(filename: string, data: string)
+            3. readFromFile(filename: string)
+            4. extractTextFromPDF(filename: string)
+            
+            Rules:
+            - Be direct, no fluff, no waffle, and do not use emojis.""").build();
+    private OllamaChatResult chatResult = new OllamaChatResult(new OllamaChatResponseModel(), new ArrayList<>() {
     });
     private final SmoothTyper agentResponseTyper;
 
@@ -62,6 +61,7 @@ public class OllamaChatService {
     }
 
     public void chat(String prompt){
+
         new Thread(() -> {
             try{
                 requestModel = builder.withMessages(chatResult.getChatHistory()).withMessage(OllamaChatMessageRole.USER, prompt).build();
@@ -141,6 +141,10 @@ public class OllamaChatService {
 
     public String getModel(){
         return requestModel.getModel();
+    }
+
+    public Ollama getOllama(){
+        return ollama;
     }
 
 }
