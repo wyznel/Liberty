@@ -9,6 +9,7 @@ module com.liberty.liberty {
     requires com.google.errorprone.annotations;
     requires org.apache.pdfbox;
     requires org.apache.pdfbox.io;
+    requires org.yaml.snakeyaml;
 
 
     opens com.liberty.liberty to javafx.fxml;
