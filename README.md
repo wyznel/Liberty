@@ -38,18 +38,6 @@ Use the Maven Wrapper to build and run the application:
 
 The application will check if the Ollama server is running and ensure the required model is pulled before starting the chat interface.
 
-## Project Structure
-
-- `src/main/java/com/liberty/liberty/Liberty.java`: Main application entry point and UI logic.
-- `src/main/java/com/liberty/liberty/OllamaChatService.java`: Handles communication with the Ollama API, tool calling, and conversation history.
-- `src/main/java/com/liberty/liberty/OllamaBootstrap.java`: Manages Ollama server and model initialization.
-- `src/main/java/com/liberty/liberty/SmoothTyper.java`: Logic for the smooth typing animation.
-- `src/main/java/com/liberty/liberty/Tools/`: Package containing tool implementations for LLM interaction.
-    - `FileHandlingTools.java`: Tools for local file system operations.
-    - `PDFTools.java`: Tools for PDF document text extraction.
-- `conversation_history/`: Directory where saved conversation JSON files are stored.
-- `sandbox/`: Default workspace for file-based tools.
-
 ## Configuration
 
 Available models are listed in `OllamaChatService.java`. You can change the default model by modifying the `AVAILABLE_MODELS` array and the model selection index:
