@@ -2,6 +2,8 @@ package com.liberty.liberty;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.liberty.liberty.Tools.AvailableTools;
+import com.liberty.liberty.Tools.PDFTools;
 import io.github.ollama4j.Ollama;
 import io.github.ollama4j.exceptions.OllamaException;
 import io.github.ollama4j.models.chat.*;
@@ -13,14 +15,30 @@ import java.util.ArrayList;
 import java.util.List;
 
 
-@OllamaToolService(providers = AvailableTools.class)
+@OllamaToolService(providers = { AvailableTools.class, PDFTools.class })
 public class OllamaChatService {
+
+    private static String[] AVAILABLE_MODELS = {
+            "gemma4:e4b", "qwen2.5:7b-instruct",
+            "qwen3.5:4b"
+    };
+
 
     public static final File CONVERSATION_HISTORY_DIRECTORY = new File("conversation_history");
 
     private final Ollama ollama = new Ollama("http://127.0.0.1:11434");
-    private final OllamaChatRequest builder = OllamaChatRequest.builder().withModel("gemma4:e4b");
-    private OllamaChatRequest requestModel = builder.withMessage(OllamaChatMessageRole.SYSTEM, "Do not use any Emoji's in your responses, be direct, no fluff no waffle.").build();
+    private final OllamaChatRequest builder = OllamaChatRequest.builder().withModel(AVAILABLE_MODELS[1]);
+    private OllamaChatRequest requestModel = builder.withMessage(OllamaChatMessageRole.SYSTEM, "You are Liberty, a local desktop AI assistant.\n" +
+            "You may answer normally or request exactly one tool call.\n" +
+            "\n" +
+            "Available tools:\n" +
+            "1. createNewFile(filename: string)\n" +
+            "2. writeToFile(filename: string, data: string)\n" +
+            "3. readFromFile(filename: string)\n" +
+            "4. extractTextFromPDF(filename: string)\n" +
+            "\n" +
+            "Rules:\n" +
+            "- Be direct, no fluff, no waffle, and do not use emojis.").build();
     private OllamaChatResult chatResult = new OllamaChatResult(new OllamaChatResponseModel(), new ArrayList<OllamaChatMessage>() {
     });
     private final SmoothTyper agentResponseTyper;
@@ -52,7 +70,7 @@ public class OllamaChatService {
                     agentResponseTyper.clearShown();
                     OllamaChatStreamObserver streamObserver = new OllamaChatStreamObserver();
                     streamObserver.setThinkingStreamHandler(
-                            s -> System.out.println(s.toLowerCase())
+                            s -> System.out.print(s.toLowerCase())
                     );
 
                     streamObserver.setResponseStreamHandler(

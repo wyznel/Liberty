@@ -10,6 +10,10 @@ import javafx.scene.control.*;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.*;
 import javafx.stage.Stage;
+import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.io.RandomAccessReadBufferedFile;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.text.PDFTextStripper;
 
 import java.io.File;
 import java.util.*;
@@ -190,7 +194,20 @@ public class Liberty extends Application {
         agentResponseLabel.setStyle("-fx-text-fill: white; -fx-background-color: transparent;");
 
         VBox.setVgrow(agentResponseLabel, Priority.NEVER);
+
         return agentResponseLabel;
+    }
+
+    public void readPDF(){
+        File pdf = new File("sandbox/test.pdf");
+        try{
+            PDDocument document = Loader.loadPDF(new RandomAccessReadBufferedFile(pdf.getName()));
+            PDFTextStripper stripper = new PDFTextStripper();
+            String text = stripper.getText(document);
+            System.out.println("Extracted text from PDF:\n" + text);
+        }catch (Exception e){
+            e.printStackTrace();
+        }
     }
 
 }
