@@ -1,3 +1,23 @@
+.base {
+    -fx-border-radius: 0;
+    -fx-background-color: #2b2b2b;
+}
+
+.button{
+    -fx-background-color: #2b2b2b;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-cursor: hand;
+}
+
+.button:hover{
+    -fx-background-color: #414141;
+}
+
+.new-chat-button-active-chat{
+    -fx-background-color: #414141;
+}
+
 .agent-response-text-area .content {
     -fx-border-radius: 0;
     -fx-background-color: #2b2b2b;

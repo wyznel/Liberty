@@ -5,7 +5,6 @@ import javafx.concurrent.Task;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
-import javafx.scene.control.*;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
@@ -21,7 +20,15 @@ import java.util.*;
 
 public class Liberty extends Application {
 
-    private final VBox VBOX_agentResponseArea = new VBox();
+    private final VBox historyVbox = new VBox();
+
+    private final ArrayList<VBox> chatStore = new ArrayList<>();
+    private final ArrayList<Button> chatButtons = new ArrayList<>();
+
+    private ScrollPane outerAgentResponseArea_SCROLLPANE;
+    private VBox activeChat;
+
+    private int chatIndex = 0;
 
     @Override
     public void start(Stage stage) {
@@ -39,19 +46,16 @@ public class Liberty extends Application {
         root.setPadding(new Insets(20));
         root.getStyleClass().add("root-pane");
 
-        VBOX_agentResponseArea.setSpacing(5);
-        VBOX_agentResponseArea.setAlignment(Pos.CENTER_LEFT);
-        VBOX_agentResponseArea.getChildren().add(agentResponseLabel);
+        outerAgentResponseArea_SCROLLPANE = new ScrollPane();
+        outerAgentResponseArea_SCROLLPANE.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        outerAgentResponseArea_SCROLLPANE.getStyleClass().add("scroll-pane-agent-response");
+        outerAgentResponseArea_SCROLLPANE.setFitToWidth(true);
+        outerAgentResponseArea_SCROLLPANE.setFitToHeight(false);
 
-        BorderPane.setMargin(VBOX_agentResponseArea, new Insets(10));
-        TextArea userInput = new TextArea();
-        userInput.setWrapText(true);
-        userInput.setPromptText("Enter your message here...");
-        userInput.getStyleClass().add("user-input-text-area");
-        userInput.setPrefHeight(20);
-        userInput.setMaxHeight(30);
-        userInput.setDisable(true);
-        HBox.setHgrow(userInput, Priority.ALWAYS);
+        VBox agentResponseParent = getNewAgentResponseVBox();
+        agentResponseParent.getChildren().add(agentResponseLabel);
+
+        TextArea userInput = getUserInput();
 
         Button sendButton = new Button("Send");
         sendButton.setDisable(true);
@@ -60,15 +64,12 @@ public class Liberty extends Application {
         sendButton.setOnAction(_ -> {
             if (userInput.getText().isEmpty()) return;
 
-//            sendButton.setDisable(true);
-//            userInput.setDisable(true);
-
-            Label test1 = getNewAgentResponseLabelAndStartNewTyper(agentTyper.getAgentResponseLabel());
-            ollamaChatService.getTyper().setLabel(test1);
-            VBOX_agentResponseArea.getChildren().add(test1);
+            Label newResponseLabel = getNewAgentResponseLabelAndStartNewTyper(agentTyper.getAgentResponseLabel());
+            ollamaChatService.getTyper().setLabel(newResponseLabel);
+            activeChat.getChildren().add(newResponseLabel);
 
             if(userInput.getText().startsWith("/")){
-                handleCommand(userInput.getText(), agentTyper, ollamaChatService);
+                handleCommand(userInput.getText(), agentTyper, ollamaChatService, activeChat);
             }else{
                 ollamaChatService.chat(userInput.getText());
             }
@@ -84,15 +85,8 @@ public class Liberty extends Application {
         inputBox.setAlignment(Pos.CENTER);
         inputBox.setPadding(new Insets(15, 0, 0, 0));
 
-        ScrollPane outerAgentResponseArea_SCROLLPANE = new ScrollPane();
-        outerAgentResponseArea_SCROLLPANE.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
-        outerAgentResponseArea_SCROLLPANE.getStyleClass().add("scroll-pane-agent-response");
-
-        outerAgentResponseArea_SCROLLPANE.setContent(VBOX_agentResponseArea);
-        outerAgentResponseArea_SCROLLPANE.setFitToWidth(true);
-        outerAgentResponseArea_SCROLLPANE.setFitToHeight(false);
-
         root.setCenter(outerAgentResponseArea_SCROLLPANE);
+        root.setLeft(leftPanel());
         root.setBottom(inputBox);
 
         Scene scene = new Scene(root, 700, 700);
@@ -150,7 +144,38 @@ public class Liberty extends Application {
         new Thread(loadModelTask).start();
     }
 
-    private void handleCommand(String userInputText, SmoothTyper agentResponseTyper, OllamaChatService ollamaChatService){
+    private VBox leftPanel(){
+        VBox leftPanel = new VBox();
+        leftPanel.setSpacing(10);
+        leftPanel.setPadding(new Insets(0,10,0, -5));
+        leftPanel.setAlignment(Pos.TOP_LEFT);
+
+        Button newChat = new Button(" + New Chat");
+        Button showHistory = new Button(" ⏱\uFE0E History");
+
+        newChat.setOnAction(e -> {
+            getNewAgentResponseVBox();
+        });
+
+        historyVbox.getStyleClass().add(".base");
+        leftPanel.getChildren().addAll(newChat, showHistory, historyVbox);
+        leftPanel.getStyleClass().add(".base");
+        return leftPanel;
+    }
+
+    private TextArea getUserInput(){
+        TextArea userInput = new TextArea();
+        userInput.setWrapText(true);
+        userInput.setPromptText("Enter your message here...");
+        userInput.getStyleClass().add("user-input-text-area");
+        userInput.setPrefHeight(20);
+        userInput.setMaxHeight(30);
+        userInput.setDisable(true);
+        HBox.setHgrow(userInput, Priority.ALWAYS);
+        return userInput;
+    }
+
+    private void handleCommand(String userInputText, SmoothTyper agentResponseTyper, OllamaChatService ollamaChatService, VBox agentResponseParent){
         String[] parts = userInputText.split(" ");
         for (int i = 0; i < parts.length; i++) {
             parts[i] = parts[i].trim();
@@ -164,7 +189,7 @@ public class Liberty extends Application {
 
         switch (parts[0].toLowerCase()){
             case "/exit" -> stopApp(ollamaChatService);
-            case "/clear" -> VBOX_agentResponseArea.getChildren().clear();
+            case "/clear" -> agentResponseParent.getChildren().clear();
             case "/help" -> agentResponseTyper.append("""
                     Available commands:
                     /save <filename> - Save the current conversation history to a file
@@ -192,13 +217,9 @@ public class Liberty extends Application {
         }
     }
 
-    public VBox getVBOX_agentResponseArea() {
-        return VBOX_agentResponseArea;
-    }
-
     public Label getNewAgentResponseLabelAndStartNewTyper(Label prevLabel) {
         if(prevLabel != null){
-            prevLabel.setText(prevLabel.getText() + "\n\n");
+            prevLabel.setText(prevLabel.getText() + System.lineSeparator() + System.lineSeparator());
         }
 
         Label agentResponseLabel = new Label();
@@ -211,6 +232,45 @@ public class Liberty extends Application {
         VBox.setVgrow(agentResponseLabel, Priority.NEVER);
 
         return agentResponseLabel;
+    }
+
+    public VBox getNewAgentResponseVBox(){
+        VBox agentResponseParent = new VBox();
+        agentResponseParent.setSpacing(5);
+        agentResponseParent.setAlignment(Pos.CENTER_LEFT);
+        BorderPane.setMargin(agentResponseParent, new Insets(10));
+        chatStore.add(agentResponseParent);
+        activeChat = agentResponseParent;
+        int currentChatId = chatIndex;
+        String chatId = Integer.toString(currentChatId);
+
+        Button switchToThisChatButton = new Button("Chat " + chatIndex);
+        switchToThisChatButton.setId(chatId);
+        agentResponseParent.setId(chatId);
+        chatIndex++;
+
+        switchToThisChatButton.setOnAction(_ -> {
+            updateActiveChatStyle(currentChatId);
+            outerAgentResponseArea_SCROLLPANE.setContent(chatStore.get(currentChatId));
+            activeChat = chatStore.get(currentChatId);
+        });
+
+        chatButtons.add(switchToThisChatButton);
+        historyVbox.getChildren().add(switchToThisChatButton);
+
+        updateActiveChatStyle(currentChatId);
+        outerAgentResponseArea_SCROLLPANE.setContent(agentResponseParent);
+        return agentResponseParent;
+    }
+
+    private void updateActiveChatStyle(int newIndex) {
+        // Remove style from all buttons and add it to the active one
+        for (int i = 0; i < chatButtons.size(); i++) {
+            chatButtons.get(i).getStyleClass().remove("new-chat-button-active-chat");
+        }
+        if (newIndex >= 0 && newIndex < chatButtons.size()) {
+            chatButtons.get(newIndex).getStyleClass().add("new-chat-button-active-chat");
+        }
     }
 
     private static void stopApp(OllamaChatService ollamaChatService){

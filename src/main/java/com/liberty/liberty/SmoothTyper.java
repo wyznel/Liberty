@@ -71,7 +71,7 @@ public class SmoothTyper {
 
     public synchronized void stopLoadingAnimation(){
         if(loadingTimeline==null) return;
-        append("\n\n");
+        append(System.lineSeparator() + System.lineSeparator());
         loadingTimeline.stop();
         loadingTimeline = null;
         System.out.println("Stopped loading animation timeline");
