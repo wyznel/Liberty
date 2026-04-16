@@ -23,6 +23,7 @@ public class OllamaChatService {
     };
 
     public static final File CONVERSATION_HISTORY_DIRECTORY = new File("conversation_history");
+    private static final File RUNTIME_HISTORY_DIRECTORY = new File("runtime_history");
 
     private final Ollama ollama = new Ollama("http://127.0.0.1:11434");
     private final OllamaChatRequest builder = OllamaChatRequest.builder().withModel(AVAILABLE_MODELS[3]);
@@ -56,6 +57,9 @@ public class OllamaChatService {
     {
         if(CONVERSATION_HISTORY_DIRECTORY.mkdirs()){
             System.out.println("> Conversation history directory created");
+        }
+        if(RUNTIME_HISTORY_DIRECTORY.mkdirs()){
+            System.out.println("> Runtime history directory created");
         }
 
     }
@@ -93,12 +97,15 @@ public class OllamaChatService {
      * @param filename name of file.
      * @return TRUE / FALSE if successful.
      */
-    public boolean saveConversationHistory(String filename){
+    public synchronized boolean saveConversationHistory(String filename, boolean calledByUser){
         try{
-            File path = new File(CONVERSATION_HISTORY_DIRECTORY + "/" +filename+".json");
-            if(path.createNewFile()){
-                System.out.println("Conversation history saved to " + path.getAbsolutePath());
+            File path = new File((calledByUser ? CONVERSATION_HISTORY_DIRECTORY : RUNTIME_HISTORY_DIRECTORY) + "/" +filename+".json");
+            // If the file already exists, we want to overwrite it in runtime history
+            if(!calledByUser && path.exists()){
+                path.delete();
+            }
 
+            if(path.createNewFile() || (!calledByUser && path.exists())){
                 BufferedWriter writer = new BufferedWriter(new FileWriter(path));
                 writer.write(chatResult.getChatHistory().toString());
                 writer.close();
@@ -117,9 +124,10 @@ public class OllamaChatService {
      * @param filename name of file.
      * @return TRUE / FALSE if successful.
      */
-    public boolean loadPreviousConversation(String filename){
+    public synchronized boolean loadConversation(String filename, boolean calledByUser){
+        System.out.println("hello");
         try{
-            File previousConversation = new File(CONVERSATION_HISTORY_DIRECTORY + "/" + filename + ".json");
+            File previousConversation = new File((calledByUser ? CONVERSATION_HISTORY_DIRECTORY : RUNTIME_HISTORY_DIRECTORY) + "/" + filename + ".json");
             if(!previousConversation.exists() ||  !previousConversation.isFile()){
                 return false;
             }
@@ -128,6 +136,8 @@ public class OllamaChatService {
             List<OllamaChatMessage> chatHistory = MAPPER.readValue(previousConversation, new TypeReference<>() {});
 
             chatResult.getChatHistory().addAll(chatHistory);
+            requestModel = builder.withMessages(chatResult.getChatHistory()).build();
+            System.out.println(chatResult.getChatHistory());
             return true;
 
         }catch (Exception e) {
@@ -145,6 +155,26 @@ public class OllamaChatService {
 
     public Ollama getOllama(){
         return ollama;
+    }
+
+    public synchronized void clearHistory(){
+        chatResult.getChatHistory().clear();
+        requestModel = builder.withMessages(chatResult.getChatHistory()).build();
+    }
+
+    public synchronized void clearRuntimeHistoryDir(){
+        try{
+            File[] files = RUNTIME_HISTORY_DIRECTORY.listFiles();
+            if(files == null) return;
+            for(File file : files){
+                boolean deleted = file.delete();
+                if(!deleted){
+                    System.err.println("Failed to delete file: " + file.getName());
+                }
+            }
+        } catch (RuntimeException e) {
+            throw new RuntimeException(e);
+        }
     }
 
 }

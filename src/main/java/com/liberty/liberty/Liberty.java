@@ -33,6 +33,7 @@ public class Liberty extends Application {
     @Override
     public void start(Stage stage) {
         init(stage);
+
     }
 
     private void init(Stage stage){
@@ -52,7 +53,7 @@ public class Liberty extends Application {
         outerAgentResponseArea_SCROLLPANE.setFitToWidth(true);
         outerAgentResponseArea_SCROLLPANE.setFitToHeight(false);
 
-        VBox agentResponseParent = getNewAgentResponseVBox();
+        VBox agentResponseParent = getNewChatArea(ollamaChatService);
         agentResponseParent.getChildren().add(agentResponseLabel);
 
         TextArea userInput = getUserInput();
@@ -86,7 +87,7 @@ public class Liberty extends Application {
         inputBox.setPadding(new Insets(15, 0, 0, 0));
 
         root.setCenter(outerAgentResponseArea_SCROLLPANE);
-        root.setLeft(leftPanel());
+        root.setLeft(leftPanel(ollamaChatService));
         root.setBottom(inputBox);
 
         Scene scene = new Scene(root, 700, 700);
@@ -144,7 +145,7 @@ public class Liberty extends Application {
         new Thread(loadModelTask).start();
     }
 
-    private VBox leftPanel(){
+    private VBox leftPanel(OllamaChatService ollamaChatService){
         VBox leftPanel = new VBox();
         leftPanel.setSpacing(10);
         leftPanel.setPadding(new Insets(0,10,0, -5));
@@ -154,7 +155,10 @@ public class Liberty extends Application {
         Button showHistory = new Button(" ⏱\uFE0E History");
 
         newChat.setOnAction(e -> {
-            getNewAgentResponseVBox();
+            VBox newChatArea = getNewChatArea(ollamaChatService);
+            Label newResponseLabel = getNewAgentResponseLabelAndStartNewTyper(null);
+            ollamaChatService.getTyper().setLabel(newResponseLabel);
+            newChatArea.getChildren().add(newResponseLabel);
         });
 
         historyVbox.getStyleClass().add(".base");
@@ -199,7 +203,7 @@ public class Liberty extends Application {
                     /help - Show this help message""");
             case "/save" -> {
                 //Save the current conversation history to a file.
-                if (ollamaChatService.saveConversationHistory(parts[1])){
+                if (ollamaChatService.saveConversationHistory(parts[1], true)){
                     File file = new File(OllamaChatService.CONVERSATION_HISTORY_DIRECTORY + "/" + parts[1] + ".json"); // Used to get the file path.
                     agentResponseTyper.append("Conversation history saved to " + file.getAbsolutePath());
                 }else{
@@ -207,7 +211,7 @@ public class Liberty extends Application {
                 }
             }
             case "/load" -> {
-                if(ollamaChatService.loadPreviousConversation(parts[1])){
+                if(ollamaChatService.loadConversation(parts[1], true)){
                     agentResponseTyper.append("Successfully loaded conversation history from: " + new File(OllamaChatService.CONVERSATION_HISTORY_DIRECTORY + "/" + parts[1] + ".json").getAbsolutePath());
                 }else{
                     agentResponseTyper.append("Failed to load conversation history, file might not exist!");
@@ -234,42 +238,62 @@ public class Liberty extends Application {
         return agentResponseLabel;
     }
 
-    public VBox getNewAgentResponseVBox(){
+    public VBox getNewChatArea(OllamaChatService ollamaChatService){
+        if (activeChat != null) {
+            ollamaChatService.saveConversationHistory(activeChat.getId(), false);
+            ollamaChatService.clearHistory();
+        }
+
         VBox agentResponseParent = new VBox();
         agentResponseParent.setSpacing(5);
         agentResponseParent.setAlignment(Pos.CENTER_LEFT);
         BorderPane.setMargin(agentResponseParent, new Insets(10));
         chatStore.add(agentResponseParent);
-        activeChat = agentResponseParent;
-        int currentChatId = chatIndex;
-        String chatId = Integer.toString(currentChatId);
+        int newChatID = chatIndex;
+        String chatId = Integer.toString(newChatID);
 
-        Button switchToThisChatButton = new Button("Chat " + chatIndex);
-        switchToThisChatButton.setId(chatId);
+        Button switchToChatButton = new Button("Chat " + chatIndex);
+        switchToChatButton.setId(chatId);
         agentResponseParent.setId(chatId);
         chatIndex++;
 
-        switchToThisChatButton.setOnAction(_ -> {
-            updateActiveChatStyle(currentChatId);
-            outerAgentResponseArea_SCROLLPANE.setContent(chatStore.get(currentChatId));
-            activeChat = chatStore.get(currentChatId);
+        switchToChatButton.setOnAction(_ -> {
+            if (activeChat != null && !activeChat.getId().equals(String.valueOf(newChatID))) {
+                switchMemory(Integer.parseInt(activeChat.getId()), newChatID, ollamaChatService);
+            }
+            updateActiveChatStyle(newChatID);
+
+            outerAgentResponseArea_SCROLLPANE.setContent(chatStore.get(newChatID));
+            activeChat = chatStore.get(newChatID);
         });
 
-        chatButtons.add(switchToThisChatButton);
-        historyVbox.getChildren().add(switchToThisChatButton);
+        activeChat = agentResponseParent;
+        chatButtons.add(switchToChatButton);
+        historyVbox.getChildren().add(switchToChatButton);
 
-        updateActiveChatStyle(currentChatId);
+        updateActiveChatStyle(newChatID);
         outerAgentResponseArea_SCROLLPANE.setContent(agentResponseParent);
         return agentResponseParent;
     }
 
     private void updateActiveChatStyle(int newIndex) {
         // Remove style from all buttons and add it to the active one
-        for (int i = 0; i < chatButtons.size(); i++) {
-            chatButtons.get(i).getStyleClass().remove("new-chat-button-active-chat");
+        for (Button chatButton : chatButtons) {
+            chatButton.getStyleClass().remove("new-chat-button-active-chat");
         }
         if (newIndex >= 0 && newIndex < chatButtons.size()) {
             chatButtons.get(newIndex).getStyleClass().add("new-chat-button-active-chat");
+        }
+    }
+
+    private void switchMemory(int oldChatID, int newChatID,  OllamaChatService ollamaChatService){
+        System.out.println(oldChatID + " -> " + newChatID);
+
+        ollamaChatService.saveConversationHistory(String.valueOf(oldChatID), false);
+        ollamaChatService.clearHistory();
+        boolean loaded = ollamaChatService.loadConversation(String.valueOf(newChatID), false);
+        if (!loaded) {
+            System.out.println("No history found for Chat " + newChatID + ", starting fresh.");
         }
     }
 
@@ -277,6 +301,8 @@ public class Liberty extends Application {
         try{
             ollamaChatService.getTyper().append("Goodbye! See you next time!");
             OllamaBootstrap.stopOllamaModel(ollamaChatService.getModel());
+            ollamaChatService.clearRuntimeHistoryDir();
+
             System.exit(0);
         }catch (Exception e){
             System.err.println("Failed to stop model: " + e.getMessage());
