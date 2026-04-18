@@ -33,10 +33,9 @@ public class Liberty extends Application {
     @Override
     public void start(Stage stage) {
         init(stage);
-
     }
 
-    private void init(Stage stage){
+    public void init(Stage stage){
         Label agentResponseLabel = getNewAgentResponseLabelAndStartNewTyper(null);
         SmoothTyper agentTyper = new SmoothTyper(agentResponseLabel);
         agentTyper.startTyper();
@@ -87,7 +86,7 @@ public class Liberty extends Application {
         inputBox.setPadding(new Insets(15, 0, 0, 0));
 
         root.setCenter(outerAgentResponseArea_SCROLLPANE);
-        root.setLeft(leftPanel(ollamaChatService));
+        root.setLeft(leftPanel(ollamaChatService, stage));
         root.setBottom(inputBox);
 
         Scene scene = new Scene(root, 700, 700);
@@ -143,7 +142,7 @@ public class Liberty extends Application {
         new Thread(loadModelTask).start();
     }
 
-    private VBox leftPanel(OllamaChatService ollamaChatService){
+    private VBox leftPanel(OllamaChatService ollamaChatService, Stage stage){
         VBox leftPanel = new VBox();
         leftPanel.setSpacing(10);
         leftPanel.setPadding(new Insets(0,10,0, -5));
@@ -157,14 +156,16 @@ public class Liberty extends Application {
         settings.disableProperty().bind(OllamaBootstrap.isOllamaReady.not());
         showHistory.disableProperty().bind(OllamaBootstrap.isOllamaReady.not());
 
-        newChat.setOnAction(e -> {
+        newChat.setOnAction(_ -> {
             VBox newChatArea = getNewChatArea(ollamaChatService);
             Label newResponseLabel = getNewAgentResponseLabelAndStartNewTyper(null);
             ollamaChatService.getTyper().setLabel(newResponseLabel);
             newChatArea.getChildren().add(newResponseLabel);
         });
 
-        settings.setOnAction(e -> {});
+        settings.setOnAction(_ -> {
+            stage.setScene(Settings.getStage(stage.getScene().getWidth(), stage.getScene().getHeight()));
+        });
 
         historyVbox.getStyleClass().add(".base");
         leftPanel.getChildren().addAll(newChat, settings, showHistory, historyVbox);
