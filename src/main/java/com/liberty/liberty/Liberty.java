@@ -59,7 +59,7 @@ public class Liberty extends Application {
         TextArea userInput = getUserInput();
 
         Button sendButton = new Button("Send");
-        sendButton.setDisable(true);
+        sendButton.disableProperty().bind(OllamaBootstrap.isOllamaReady.not());
         sendButton.getStyleClass().add("send-button");
 
         sendButton.setOnAction(_ -> {
@@ -135,8 +135,6 @@ public class Liberty extends Application {
         loadModelTask.setOnSucceeded(_ -> {
             agentTyper.stopLoadingAnimation();
             agentTyper.append("Model loaded successfully, begin chatting!\n\nType /help for available commands.");
-            userInput.setDisable(false);
-            sendButton.setDisable(false);
         });
         loadModelTask.setOnFailed(_ -> {
             agentTyper.stopLoadingAnimation();
@@ -152,7 +150,12 @@ public class Liberty extends Application {
         leftPanel.setAlignment(Pos.TOP_LEFT);
 
         Button newChat = new Button(" + New Chat");
-        Button showHistory = new Button(" ⏱\uFE0E History");
+        Button settings = new Button(" ⚙ Settings");
+        Button showHistory = new Button(" ⏱︎ History");
+
+        newChat.disableProperty().bind(OllamaBootstrap.isOllamaReady.not());
+        settings.disableProperty().bind(OllamaBootstrap.isOllamaReady.not());
+        showHistory.disableProperty().bind(OllamaBootstrap.isOllamaReady.not());
 
         newChat.setOnAction(e -> {
             VBox newChatArea = getNewChatArea(ollamaChatService);
@@ -161,8 +164,10 @@ public class Liberty extends Application {
             newChatArea.getChildren().add(newResponseLabel);
         });
 
+        settings.setOnAction(e -> {});
+
         historyVbox.getStyleClass().add(".base");
-        leftPanel.getChildren().addAll(newChat, showHistory, historyVbox);
+        leftPanel.getChildren().addAll(newChat, settings, showHistory, historyVbox);
         leftPanel.getStyleClass().add(".base");
         return leftPanel;
     }
@@ -174,7 +179,7 @@ public class Liberty extends Application {
         userInput.getStyleClass().add("user-input-text-area");
         userInput.setPrefHeight(20);
         userInput.setMaxHeight(30);
-        userInput.setDisable(true);
+        userInput.disableProperty().bind(OllamaBootstrap.isOllamaReady.not());
         HBox.setHgrow(userInput, Priority.ALWAYS);
         return userInput;
     }

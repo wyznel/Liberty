@@ -1,6 +1,10 @@
 package com.liberty.liberty;
 
 import io.github.ollama4j.models.generate.OllamaGenerateRequest;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.value.ObservableBooleanValue;
+
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -10,6 +14,9 @@ import java.time.Duration;
 public class OllamaBootstrap {
     private static final String BASE_URL = "http://127.0.0.1:11434";
     private static final HttpClient CLIENT = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2)).build();
+
+
+    public static BooleanProperty isOllamaReady = new SimpleBooleanProperty(false);
 
     public static void ensureOllamaReady(OllamaChatService ollamaChatService) throws Exception {
 
@@ -34,6 +41,7 @@ public class OllamaBootstrap {
             }
         }
         warmModel(ollamaChatService);
+        isOllamaReady.set(true);
     }
 
     private static boolean isServerUp(OllamaChatService ollamaChatService) {
@@ -47,7 +55,7 @@ public class OllamaBootstrap {
     private static void waitForServer(OllamaChatService ollamaChatService) throws Exception {
         int attempts = 0;
         while (attempts < 20) {
-            if (isServerUp(ollamaChatService)) return;
+            if (isServerUp(ollamaChatService)){return;}
             Thread.sleep(500);
             attempts++;
         }
