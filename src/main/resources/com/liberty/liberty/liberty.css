@@ -1,21 +1,6 @@
-.base {
-    -fx-border-radius: 0;
-    -fx-background-color: #2b2b2b;
-}
-
-.button{
-    -fx-background-color: #2b2b2b;
+.button.new-chat-button-active-chat {
+    -fx-background-color: #414141;
     -fx-text-fill: white;
-    -fx-font-weight: bold;
-    -fx-cursor: hand;
-}
-
-.button:hover{
-    -fx-background-color: #414141;
-}
-
-.new-chat-button-active-chat{
-    -fx-background-color: #414141;
 }
 
 .agent-response-text-area .content {
@@ -54,7 +39,7 @@
     -fx-background-radius: 0;
 }
 
-.send-button {
+.button.send-button {
     -fx-background-color: #4a90e2;
     -fx-text-fill: white;
     -fx-font-weight: bold;

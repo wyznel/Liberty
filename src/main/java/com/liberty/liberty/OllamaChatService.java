@@ -16,18 +16,49 @@ import java.util.List;
 @OllamaToolService(providers = { FileHandlingTools.class, PDFTools.class })
 public class OllamaChatService {
 
-    private final static String[] AVAILABLE_MODELS = {
-            "gemma4:e4b", "qwen2.5:7b-instruct",
-            "qwen3.5:4b", "qwen3:4b-instruct",
-            "gemma4:e2b"
-    };
+    private static String[] AVAILABLE_MODELS;
 
     public static final File CONVERSATION_HISTORY_DIRECTORY = new File("conversation_history");
     private static final File RUNTIME_HISTORY_DIRECTORY = new File("runtime_history");
 
     private final Ollama ollama = new Ollama("http://127.0.0.1:11434");
-    private final OllamaChatRequest builder = OllamaChatRequest.builder().withModel(AVAILABLE_MODELS[3]);
-    private OllamaChatRequest requestModel = builder.withMessage(OllamaChatMessageRole.SYSTEM, """
+    private OllamaChatRequest builder;
+    private OllamaChatRequest requestModel;
+    private OllamaChatResult chatResult = new OllamaChatResult(new OllamaChatResponseModel(), new ArrayList<>() {
+    });
+    private final SmoothTyper agentResponseTyper;
+
+    private static void getModels(){
+        ProcessBuilder pb = new ProcessBuilder("ollama", "list");
+        try{
+            Process process = pb.start();
+
+            StringBuilder out = new StringBuilder();
+            try(BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))){
+                List<String> modelList = reader.lines()
+                        .skip(1)
+                        .map(ln -> ln.trim().split("\\s+")[0])
+                        .filter(s -> !s.isBlank())
+                        .toList();
+
+                AVAILABLE_MODELS = modelList.toArray(new String[0]);
+
+            }
+            process.waitFor();
+
+
+
+        } catch (IOException | InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public OllamaChatService(SmoothTyper agentResponseTyper) {
+        this.agentResponseTyper = agentResponseTyper;
+
+        getModels();
+        builder = OllamaChatRequest.builder().withModel(AVAILABLE_MODELS[1]);
+        requestModel = builder.withMessage(OllamaChatMessageRole.SYSTEM, """
             You are Liberty, a local desktop AI assistant.
             You may answer normally or request exactly one tool call.
             
@@ -39,12 +70,6 @@ public class OllamaChatService {
             
             Rules:
             - Be direct, no fluff, no waffle, and do not use emojis.""").build();
-    private OllamaChatResult chatResult = new OllamaChatResult(new OllamaChatResponseModel(), new ArrayList<>() {
-    });
-    private final SmoothTyper agentResponseTyper;
-
-    public OllamaChatService(SmoothTyper agentResponseTyper) {
-        this.agentResponseTyper = agentResponseTyper;
 
         try{
             ollama.registerAnnotatedTools();

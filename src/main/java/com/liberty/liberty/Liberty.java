@@ -27,12 +27,16 @@ public class Liberty extends Application {
 
     private ScrollPane outerAgentResponseArea_SCROLLPANE;
     private VBox activeChat;
-
     private int chatIndex = 0;
+
+    public static Stage mainStage;
 
     @Override
     public void start(Stage stage) {
+        mainStage = stage;
         init(stage);
+        Settings.init();
+
     }
 
     public void init(Stage stage){
@@ -91,7 +95,8 @@ public class Liberty extends Application {
 
         Scene scene = new Scene(root, 700, 700);
 
-        scene.getStylesheets().add(Objects.requireNonNull(Liberty.class.getResource("style.css")).toString());
+        scene.getStylesheets().add(Objects.requireNonNull(Liberty.class.getResource("liberty.css")).toString());
+        scene.getStylesheets().add(Objects.requireNonNull(Liberty.class.getResource("main.css")).toString());
 
         try{
             stage.getIcons().add(new Image(Objects.requireNonNull(getClass().getResourceAsStream("assets/icon.png"))));
@@ -148,9 +153,9 @@ public class Liberty extends Application {
         leftPanel.setPadding(new Insets(0,10,0, -5));
         leftPanel.setAlignment(Pos.TOP_LEFT);
 
-        Button newChat = new Button(" + New Chat");
-        Button settings = new Button(" ⚙ Settings");
-        Button showHistory = new Button(" ⏱︎ History");
+        Button newChat = new Button("New Chat");
+        Button settings = new Button("Settings");
+        Button showHistory = new Button("History");
 
         newChat.disableProperty().bind(OllamaBootstrap.isOllamaReady.not());
         settings.disableProperty().bind(OllamaBootstrap.isOllamaReady.not());
@@ -164,12 +169,12 @@ public class Liberty extends Application {
         });
 
         settings.setOnAction(_ -> {
-            stage.setScene(Settings.getStage(stage.getScene().getWidth(), stage.getScene().getHeight()));
+            stage.setScene(Settings.getScene(stage.getScene().getWidth(), stage.getScene().getHeight(), stage.getScene()));
         });
 
-        historyVbox.getStyleClass().add(".base");
+        historyVbox.getStyleClass().add("base");
         leftPanel.getChildren().addAll(newChat, settings, showHistory, historyVbox);
-        leftPanel.getStyleClass().add(".base");
+        leftPanel.getStyleClass().add("base");
         return leftPanel;
     }
 
