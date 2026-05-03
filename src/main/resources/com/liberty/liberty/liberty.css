@@ -1,0 +1,60 @@
+.button.new-chat-button-active-chat {
+    -fx-background-color: #414141;
+    -fx-text-fill: white;
+}
+
+.agent-response-text-area .content {
+    -fx-border-radius: 0;
+    -fx-background-color: #2b2b2b;
+}
+.agent-response-text-area {
+    -fx-border-color: #2b2b2b;
+    -fx-border-radius: 10;
+    -fx-control-inner-background: #2b2b2b;
+}
+
+.user-input-text-area {
+    -fx-control-inner-background: #3c3f41;
+    -fx-background-color: #3c3f41;
+    -fx-background-insets: 0;
+    -fx-background-radius: 20;
+    -fx-border-color: transparent;
+    -fx-border-radius: 20;
+    -fx-text-fill: white;
+    -fx-prompt-text-fill: #808080;
+    -fx-highlight-fill: #5b91ff;
+    -fx-highlight-text-fill: white;
+    -fx-focus-color: transparent;
+    -fx-faint-focus-color: transparent;
+    -fx-text-box-border: transparent;
+    -fx-padding: 10 15 10 15;
+}
+
+.scroll-pane-agent-response {
+    -fx-background-color: #2b2b2b;
+}
+
+.user-input-text-area .content {
+    -fx-background-color: #3c3f41;
+    -fx-background-radius: 0;
+}
+
+.button.send-button {
+    -fx-background-color: #4a90e2;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-background-radius: 20;
+    -fx-padding: 10 20;
+    -fx-cursor: hand;
+}
+
+.scroll-pane-agent-response {
+    -fx-background: #2b2b2b;
+    -fx-background-color: #2b2b2b;
+    -fx-border-color: #3c3f41;
+    -fx-border-radius: 5;
+}
+
+.root-pane{
+    -fx-background-color: #2b2b2b;
+}

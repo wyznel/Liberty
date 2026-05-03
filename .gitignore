@@ -1,0 +1,24 @@
+# Local test / runtime data
+conversation_history/
+
+.mvn
+# Maven / Java build output
+target/
+out/
+build/
+*.class
+*.jar
+*.war
+*.ear
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# macOS
+.DS_Store
+
+# Logs
+*.log

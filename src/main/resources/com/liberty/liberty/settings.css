@@ -1,0 +1,17 @@
+.left-panel{
+    -fx-border-radius: 5;
+    -fx-border-color: #3c3f41;
+}
+
+.button.active-tab {
+    -fx-background-color: #414141;
+    -fx-text-fill: white;
+}
+
+.model-label {
+    -fx-text-fill: white;
+}
+
+.model-label-active {
+    -fx-text-fill: #5b91ff;
+}
