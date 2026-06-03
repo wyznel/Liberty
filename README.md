@@ -1,5 +1,5 @@
 > [!IMPORTANT]  
-> Liberty is still in early development, expect lots of issues!
+> Liberty-Java is not a main focus at the moment. Core functionality just about works, expect issues, don't expect quick fixes unless deemed urgent!
 
 # Liberty
 
